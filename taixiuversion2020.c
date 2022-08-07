@@ -259,11 +259,12 @@ void loaiNguoiChoiHetTien(Nguoichoi *so, int *n){
 void luuFile(FILE *out, Nguoichoi *so, int n){	
 	int i;
 	out = fopen("data.txt", "w");
-	fprintf(out, "%d\n", n);
-	for( i = 0; i < n; i++){
-		fprintf(out, "%d %s\n", so[i].tien, so[i].ten);
+	if (n > 0) {
+		fprintf(out, "%d\n", n);
+		for( i = 0; i < n; i++){
+			fprintf(out, "%d %s\n", so[i].tien, so[i].ten);
+		}
 	}
-	
 	fclose(out);
 }
 
@@ -278,22 +279,25 @@ int main(){
 	
 	in = fopen("data.txt", "r");
 	if(in != NULL){
-		do{
-			printf("Continue with previous data y/n? ");
-			useData = getchar();
-			fflush(stdin);
-			if(useData != 'y' && useData != 'n') printf("Please enter y(yes) or n(no)!\n");
-		}while(useData != 'y' && useData != 'n');
-		if(useData == 'y'){
-			fscanf(in, "%d", &n);
-			so = (Nguoichoi* )malloc(n*sizeof(Nguoichoi));
-			for( i = 0; i < n; i++){
-				fscanf(in, "%d %[^\n]", &so[i].tien, so[i].ten);
+		fscanf(in, "%d", &n);
+		if (n > 0) {
+			do{
+				printf("Continue with previous data y/n? ");
+				useData = getchar();
+				fflush(stdin);
+				if(useData != 'y' && useData != 'n') printf("Please enter y(yes) or n(no)!\n");
+			}while(useData != 'y' && useData != 'n');
+			if(useData == 'y'){
+				so = (Nguoichoi* )malloc(n*sizeof(Nguoichoi));
+				for( i = 0; i < n; i++){
+					fscanf(in, "%d %[^\n]", &so[i].tien, so[i].ten);
+				}
+				getData = true;
+				soTienHienTai(so, n, kq);
 			}
-			getData = true;
-			soTienHienTai(so, n, kq);
 		}
 	}
+	if (getData == false) n = 0;
 	fclose(in);
 	
 	do{
@@ -349,11 +353,8 @@ int main(){
 					
 			case 3:
 				system("cls");
-				if(n == 0) printf("No data to save!\n");
-				else{
-					luuFile(out, so, n);
-					printf("Data saved\n");
-				}
+				luuFile(out, so, n);
+				printf("Data saved\n");
 				printf("Thank you for choosing our services! Hope to see you again <3");
 				break;
 					
