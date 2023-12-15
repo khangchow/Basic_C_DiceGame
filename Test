@@ -1,20 +1,17 @@
+package com.example.customview
+
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.text.Layout
-import android.text.Spannable
-import android.text.SpannableString
 import android.text.StaticLayout
 import android.text.TextPaint
-import android.text.style.ForegroundColorSpan
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 
-class Timer @JvmOverloads constructor(
+class ExpandableTextView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
@@ -25,21 +22,23 @@ class Timer @JvmOverloads constructor(
     var actualHeight = 0
     var isExpanding = false
     private var onClickCallback: (() -> Unit)? = null
+    val textPaint = TextPaint().apply {
+        textSize = 20.sp
+        color = Color.BLACK
+    }
+
+    fun setTextSize(size: Int) {
+        textPaint.textSize = size.sp
+        isFirstDraw = true
+        invalidate()
+    }
+
+    var viewHeight = 0
 
     fun onClick() {
         isExpanding = !isExpanding
         invalidate()
     }
-
-    fun setOnClickCallback(callback: () -> Unit) {
-        onClickCallback = callback
-    }
-
-    val textPaint = TextPaint().apply {
-        textSize = 24.sp
-        color = Color.BLACK
-    }
-    var viewHeight = getTextHeight(stringTest, textPaint)
 
     fun getTextHeight(text: String, paint: Paint) = Rect().run {
         paint.getTextBounds(text, 0, text.length, this)
@@ -50,64 +49,55 @@ class Timer @JvmOverloads constructor(
         setMeasuredDimension(widthMeasureSpec, if (isFirstDraw) heightMeasureSpec else viewHeight)
     }
 
+    fun getStaticLayout(text: String, boundWidth: Int) =
+        StaticLayout.Builder.obtain(text, 0, text.length, textPaint, boundWidth)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setLineSpacing(0f, 1f)
+            .setIncludePad(false)
+            .build()
+
     override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
         val bound = canvas.clipBounds
         var tempPos = 0
         val textBound = Rect()
         val showAllText = "...Show more"
         val showAllTextBound = Rect()
-        var tempWidth = 0
         textPaint.getTextBounds(showAllText, 0, showAllText.length, showAllTextBound)
-        while (tempWidth + showAllTextBound.width() < bound.width()) {
+        while (textBound.width() + showAllTextBound.width() < bound.width()) {
             val tempStr = stringTest.substring(0, ++tempPos)
             textPaint.getTextBounds(tempStr, 0, tempStr.length, textBound)
-            tempWidth = textBound.width()
+        }
+        stringTest.substring(0, tempPos - 1).also {
+            textPaint.getTextBounds(it, 0, it.length, textBound)
         }
         val collapsedString = stringTest.substring(0, tempPos - 1) + showAllText
-        val sb = SpannableString(collapsedString)
-        sb.setSpan(
-            ForegroundColorSpan(Color.BLUE),
-            tempPos - 1,
-            collapsedString.length,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        val staticLayout =
-            StaticLayout.Builder.obtain(stringTest, 0, stringTest.length, textPaint, bound.width())
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                .setLineSpacing(0f, 1f)
-                .setIncludePad(false)
-                .build()
-        val lineCount = staticLayout.lineCount
-        val textHeight = getTextHeight(collapsedString, textPaint)
-        val textX = bound.left.toFloat()
+        val staticLayout = getStaticLayout(stringTest, bound.width())
         if (isFirstDraw) {
-            canvas.save()
-            canvas.translate(textX, 0f)
             staticLayout.draw(canvas)
-            canvas.restore()
             actualHeight = staticLayout.height
             isFirstDraw = false
             invalidate()
         } else {
             if (!isExpanding) {
-                canvas.drawText(sb.toString(), 0f, textHeight.toFloat(), textPaint)
-                viewHeight = textHeight
+                var additionalWidth = 0
+                var sl: StaticLayout
+                while (getStaticLayout(collapsedString, bound.width() + additionalWidth).let {
+                        sl = it
+                        it.lineCount > 1
+                    }) {
+                    additionalWidth++
+                }
+                sl.apply {
+                    viewHeight = height
+                    draw(canvas)
+                }
                 requestLayout()
             } else {
-                canvas.save()
-                canvas.translate(textX, 0f)
                 staticLayout.draw(canvas)
-                canvas.restore()
                 viewHeight = actualHeight
                 requestLayout()
             }
         }
-        Log.d("CHOTAOTEST", "line count: ${lineCount}")
     }
 }
-
-val Int.dp: Float
-    get() = (this * Resources.getSystem().displayMetrics.density + 0.5f)
-
-val Int.sp: Float
-    get() = (this * Resources.getSystem().displayMetrics.scaledDensity)
