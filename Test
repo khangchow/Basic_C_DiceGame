@@ -3,12 +3,12 @@ package com.example.customview
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Rect
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 
 class ExpandableTextView @JvmOverloads constructor(
@@ -17,36 +17,49 @@ class ExpandableTextView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
     defStyleRes: Int = 0
 ) : View(context, attrs, defStyleAttr, defStyleRes) {
-    var isFirstDraw = true
-    var stringTest = "123456789101112131415161718192021222324252627282930"
-    var actualHeight = 0
-    var isExpanding = false
-    private var onClickCallback: (() -> Unit)? = null
+    private var isExpanding = false
+    var text = ""
+        set(value) {
+            if (value == field) return
+            field = value
+            isNeedCalculated = true
+            invalidate()
+        }
     val textPaint = TextPaint().apply {
         textSize = 20.sp
         color = Color.BLACK
     }
-
-    fun setTextSize(size: Int) {
-        textPaint.textSize = size.sp
-        isFirstDraw = true
-        invalidate()
-    }
-
-    var viewHeight = 0
+    var textSize = 0
+        set(value) {
+            if (value == field || value < 0) return
+            field = value
+            textPaint.textSize = value.sp
+            ellipsizeTextWidth = getTextWidth(ellipsizedText)
+            isNeedCalculated = true
+            invalidate()
+        }
+    var contentHeight = 0
+    var ellipsizedText = "...See more"
+        set(value) {
+            if (value == field || value.isBlank()) return
+            field = value
+            isNeedCalculated = true
+            invalidate()
+        }
+    var ellipsizeTextWidth = getTextWidth(ellipsizedText)
+    var isRemeasured = false
+    var isNeedCalculated = true
+    lateinit var expandedStaticLayout: StaticLayout
+    lateinit var collapsedStaticLayout: StaticLayout
 
     fun onClick() {
         isExpanding = !isExpanding
+        isRemeasured = false
         invalidate()
     }
 
-    fun getTextHeight(text: String, paint: Paint) = Rect().run {
-        paint.getTextBounds(text, 0, text.length, this)
-        height()
-    }
-
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        setMeasuredDimension(widthMeasureSpec, if (isFirstDraw) heightMeasureSpec else viewHeight)
+        setMeasuredDimension(widthMeasureSpec, contentHeight)
     }
 
     fun getStaticLayout(text: String, boundWidth: Int) =
@@ -56,48 +69,57 @@ class ExpandableTextView @JvmOverloads constructor(
             .setIncludePad(false)
             .build()
 
+    fun getCollapsedStaticLayoutWidth(collapsedString: String, contentWidth: Int): Int {
+        var staticLayout: StaticLayout
+        var additionalWidth = 0
+        while (getStaticLayout(collapsedString, contentWidth + additionalWidth).run {
+                staticLayout = this
+                this.lineCount > 1
+            }) {
+            additionalWidth++
+        }
+        return staticLayout.width + additionalWidth
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val bound = canvas.clipBounds
-        var tempPos = 0
-        val textBound = Rect()
-        val showAllText = "...Show more"
-        val showAllTextBound = Rect()
-        textPaint.getTextBounds(showAllText, 0, showAllText.length, showAllTextBound)
-        while (textBound.width() + showAllTextBound.width() < bound.width()) {
-            val tempStr = stringTest.substring(0, ++tempPos)
-            textPaint.getTextBounds(tempStr, 0, tempStr.length, textBound)
+        if (isNeedCalculated) {
+            val ellipsizedPosition = getTextPositionToEllipsize(canvas.width)
+            val collapsedString = text.substring(0, ellipsizedPosition) + ellipsizedText
+            collapsedStaticLayout = getStaticLayout(
+                collapsedString,
+                getCollapsedStaticLayoutWidth(collapsedString, canvas.width)
+            )
+            expandedStaticLayout = getStaticLayout(text, canvas.width)
+            isNeedCalculated = false
         }
-        stringTest.substring(0, tempPos - 1).also {
-            textPaint.getTextBounds(it, 0, it.length, textBound)
-        }
-        val collapsedString = stringTest.substring(0, tempPos - 1) + showAllText
-        val staticLayout = getStaticLayout(stringTest, bound.width())
-        if (isFirstDraw) {
-            staticLayout.draw(canvas)
-            actualHeight = staticLayout.height
-            isFirstDraw = false
-            invalidate()
+        if (isExpanding) {
+            contentHeight = expandedStaticLayout.height
+            expandedStaticLayout.draw(canvas)
         } else {
-            if (!isExpanding) {
-                var additionalWidth = 0
-                var sl: StaticLayout
-                while (getStaticLayout(collapsedString, bound.width() + additionalWidth).let {
-                        sl = it
-                        it.lineCount > 1
-                    }) {
-                    additionalWidth++
-                }
-                sl.apply {
-                    viewHeight = height
-                    draw(canvas)
-                }
-                requestLayout()
-            } else {
-                staticLayout.draw(canvas)
-                viewHeight = actualHeight
-                requestLayout()
-            }
+            contentHeight = collapsedStaticLayout.height
+            collapsedStaticLayout.draw(canvas)
         }
+        isRemeasured = if (isRemeasured) {
+            false
+        } else {
+            requestLayout()
+            true
+        }
+    }
+
+    private fun getTextWidth(text: String): Int {
+        val contentBound = Rect()
+        textPaint.getTextBounds(text, 0, text.length, contentBound)
+        return contentBound.width()
+    }
+
+    fun getTextPositionToEllipsize(layoutWidth: Int): Int {
+        var subString = ""
+        var subStringEndPosition = 0
+        while (getTextWidth(subString) + ellipsizeTextWidth < layoutWidth) {
+            subString = text.substring(0, ++subStringEndPosition)
+        }
+        return subStringEndPosition - 1
     }
 }
