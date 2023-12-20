@@ -1,9 +1,14 @@
 package com.example.customview
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.content.res.Resources
+import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.Rect
+import android.graphics.drawable.Drawable
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -68,7 +73,7 @@ class ExpandableTextView @JvmOverloads constructor(
         StaticLayout.Builder.obtain(text, 0, text.length, textPaint, boundWidth)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setLineSpacing(0f, 1f)
-            .setIncludePad(false)
+            .setIncludePad(true)
             .build()
 
     fun getCollapsedStaticLayoutWidth(collapsedString: String, layoutWidth: Int): Int {
@@ -134,4 +139,34 @@ class ExpandableTextView @JvmOverloads constructor(
         }
         return subStringEndPosition - 2
     }
+
+    override fun setBackground(background: Drawable?) {
+
+    }
+
+    override fun setBackgroundResource(resid: Int) {
+
+    }
+
+    override fun setBackgroundColor(color: Int) {
+
+    }
+
+    override fun setBackgroundTintBlendMode(blendMode: BlendMode?) {
+
+    }
+
+    override fun setBackgroundTintList(tint: ColorStateList?) {
+
+    }
+
+    override fun setBackgroundTintMode(tintMode: PorterDuff.Mode?) {
+
+    }
 }
+
+val Int.dp: Float
+    get() = (this * Resources.getSystem().displayMetrics.density + 0.5f)
+
+val Int.sp: Float
+    get() = (this * Resources.getSystem().displayMetrics.scaledDensity)
