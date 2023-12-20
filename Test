@@ -8,7 +8,6 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 
 class ExpandableTextView @JvmOverloads constructor(
@@ -69,10 +68,10 @@ class ExpandableTextView @JvmOverloads constructor(
             .setIncludePad(false)
             .build()
 
-    fun getCollapsedStaticLayoutWidth(collapsedString: String, contentWidth: Int): Int {
+    fun getCollapsedStaticLayoutWidth(collapsedString: String, layoutWidth: Int): Int {
         var staticLayout: StaticLayout
         var additionalWidth = 0
-        while (getStaticLayout(collapsedString, contentWidth + additionalWidth).run {
+        while (getStaticLayout(collapsedString, layoutWidth + additionalWidth).run {
                 staticLayout = this
                 this.lineCount > 1
             }) {
